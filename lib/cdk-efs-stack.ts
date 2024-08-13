@@ -66,6 +66,14 @@ export class CdkEfsStack extends cdk.Stack {
         ),
       ],
     });
+    const userData = ec2.UserData.forLinux();
+    userData.addCommands(
+      "sudo su - ec2-user",
+      "sudo yum install -y amazon-efs-utils",
+      "mkdir /mnt/efs",
+      `echo '${fileSystem.fileSystemId}:/ /mnt/efs efs defaults 0 0' | sudo tee -a /etc/fstab`,
+      `sudo mount -a`
+    );
     const ec2InstancePrivate = new ec2.Instance(this, "Ec2InstancePrivate", {
       vpc: vpc,
       instanceType: new ec2.InstanceType("t2.micro"),
@@ -74,13 +82,8 @@ export class CdkEfsStack extends cdk.Stack {
         subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
       },
       role: instanceRole,
+      userData: userData,
     });
-    ec2InstancePrivate.addUserData(
-      "sudo su - ec2-user",
-      "sudo yum install -y amazon-efs-utils",
-      "mkdir /mnt/efs",
-      `sudo mount -t efs -o tls ${fileSystem.fileSystemId}:/ /mnt/efs`
-    );
 
     const ec2InstancePublic = new ec2.Instance(this, "Ec2InstancePublic", {
       vpc: vpc,
@@ -91,12 +94,7 @@ export class CdkEfsStack extends cdk.Stack {
       },
       associatePublicIpAddress: true,
       role: instanceRole,
+      userData: userData,
     });
-    ec2InstancePublic.addUserData(
-      "sudo su - ec2-user",
-      "sudo yum install -y amazon-efs-utils",
-      "sudo mkdir /mnt/efs",
-      `sudo mount -t efs -o tls ${fileSystem.fileSystemId}:/ /mnt/efs`
-    );
   }
 }
